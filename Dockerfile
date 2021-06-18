@@ -242,7 +242,14 @@ RUN jupyter nbextension enable --py --sys-prefix widgetsnbextension
 #
 # Let's start playing with jupyterlab
 #
-RUN pip install jupyterlab
+RUN pip install jupyterlab && jupyter labextension install @jupyterlab/hub-extension
+#
+# Also added this to the yaml so /lab would be default:
+#  extraConfig: |
+#    c.NotebookApp.iopub_data_rate_limit = 1000000
+#    c.Spawner.cmd=["jupyter-labhub"]
+#
+
 
 
 RUN chown -R ${NB_USER}:${NB_USER}  /home/${NB_USER} && chmod 755 /usr/local/bin/sas
