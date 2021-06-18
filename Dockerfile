@@ -1,4 +1,7 @@
 # SHA pin of rocker/geospatial:4.0.2, since rocker tags aren't immutable
+#
+# This is from the Berkeley Datahub R deployment
+#
 FROM rocker/geospatial@sha256:7b0e833cd52753be619030f61ba9e085b45eb9bb13678311da4a55632c3c8c79
 
 ENV NB_USER rstudio
@@ -83,8 +86,11 @@ RUN pip install --no-cache-dir -r ${REPO_DIR}/requirements.txt
 
 USER ${NB_USER}
 # Set up nbpdf dependencies
-ENV PYPPETEER_HOME /srv/conda
+#ENV PYPPETEER_HOME /srv/conda
 #RUN pyppeteer-install
+#
+#  I could not get the above to work so I installed it using pip
+#
 RUN pip install pyppeteer
 
 # Install latex packages via tlmgr for texlive
@@ -100,6 +106,9 @@ RUN R --quiet -e "install.packages('IRkernel', quiet = TRUE)" && \
 # Install some R libraries that aren't in the base image
 COPY class-libs.R /tmp/class-libs.R
 
+#
+# I do not need any of the class stuff so its commented out.
+#
 ##RUN mkdir -p /tmp/extras.d
 #
 #COPY --chown=rstudio extras.d/example /tmp/extras.d
@@ -217,7 +226,9 @@ RUN  ln -s /usr/lib/x86_64-linux-gnu/libncurses.so.6     /usr/lib/x86_64-linux-g
 #END STATA15
 
 
-##### SAS BEGIN
+#
+##### SAS kernel BEGIN
+#
 RUN apt-get install libnuma1
 ADD sas /usr/local/bin
 RUN pip install sas_kernel ipystata pandas-datareader  sparkmagic
@@ -228,6 +239,9 @@ RUN jupyter nbextension install --py widgetsnbextension --sys-prefix
 RUN jupyter nbextension enable --py --sys-prefix widgetsnbextension
 ##### SAS END
 
+#
+# Let's start playing with jupyterlab
+#
 RUN pip install jupyterlab
 
 
