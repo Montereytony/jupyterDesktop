@@ -327,6 +327,10 @@ ADD . /opt/install
 RUN cd /opt/install && \
    conda env update -n base --file environment.yml
 
+#
+# Install Matlab integration
+#
+RUN python -m pip install https://github.com/mathworks/jupyter-matlab-proxy/archive/0.1.0.tar.gz
 
 #
 # Fix perms because we used root to install some apps
