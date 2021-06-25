@@ -1,17 +1,20 @@
-# SHA pin of rocker/geospatial:4.0.2, since rocker tags aren't immutable
+
 #
 # This is from the Berkeley Datahub R deployment
 #
 FROM rocker/geospatial@sha256:7b0e833cd52753be619030f61ba9e085b45eb9bb13678311da4a55632c3c8c79
-
 ENV NB_USER rstudio
 ENV NB_UID 1000
+
+# Set ENV for Conda...
 ENV CONDA_DIR /srv/conda
+
 # FIXME: Why do I need to set this here manually?
 ENV REPO_DIR /srv/repo
 
 # Set ENV for all programs...
 ENV PATH ${CONDA_DIR}/bin:$PATH
+
 # And set ENV for R! It doesn't read from the environment...
 RUN echo "PATH=${PATH}" >> /usr/local/lib/R/etc/Renviron
 
@@ -19,10 +22,9 @@ RUN echo "PATH=${PATH}" >> /usr/local/lib/R/etc/Renviron
 RUN echo "PATH=${PATH}" >> /etc/profile
 RUN echo "export PATH" >> /etc/profile
 
-# The `rsession` binary that is called by jupyter-rsession-proxy to start R
-# doesn't seem to start without this being explicitly set
+# The `rsession` binary that is called by jupyter-rsession-proxy to 
+# start R doesn't seem to start without this being explicitly set
 ENV LD_LIBRARY_PATH /usr/local/lib/R/lib
-
 ENV HOME /home/${NB_USER}
 WORKDIR ${HOME}
 
@@ -34,6 +36,7 @@ WORKDIR ${HOME}
 # poppler and libglpk for D-Lab CTAWG
 # nodejs for installing notebook / jupyterhub from source
 # libarchive-dev for https://github.com/berkeley-dsep-infra/datahub/issues/1997
+
 RUN apt-get update && \
     apt-get install --yes \
             libx11-xcb1 \
@@ -60,19 +63,27 @@ RUN apt-get update && \
 
 # Download and install rstudio manually
 # Newer one has bug that doesn't work with jupyter-rsession-proxy
+#ENV RSTUDIO_URL https://download2.rstudio.org/rstudio-server-1.1.419-amd64.deb
 ENV RSTUDIO_URL https://download2.rstudio.org/server/bionic/amd64/rstudio-server-1.2.5042-amd64.deb
 
+#
 # install rstudio
+#
 RUN curl --silent --location --fail ${RSTUDIO_URL} > /tmp/rstudio.deb && \
     dpkg -i /tmp/rstudio.deb && \
     rm /tmp/rstudio.deb
 
+#
 # Download and install shiny server
+#
 RUN wget --no-verbose https://download3.rstudio.org/ubuntu-14.04/x86_64/shiny-server-1.5.12.933-amd64.deb -O ss.deb && \
     gdebi -n ss.deb && \
     rm -f ss.deb
 RUN chown -R rstudio:rstudio /var/lib/shiny-server
 
+#
+# install miniforge
+#
 COPY install-miniforge.bash /tmp/install-miniforge.bash
 RUN /tmp/install-miniforge.bash
 
@@ -84,7 +95,6 @@ RUN pip install --no-cache-dir -r ${REPO_DIR}/infra-requirements.txt
 RUN pip install --no-cache-dir -r ${REPO_DIR}/requirements.txt
 
 
-USER ${NB_USER}
 # Set up nbpdf dependencies
 #ENV PYPPETEER_HOME /srv/conda
 #RUN pyppeteer-install
@@ -96,14 +106,20 @@ RUN pip install pyppeteer
 # Install latex packages via tlmgr for texlive
 #RUN tlmgr update --self
 #RUN tlmgr install collection-latexextra
+#
+# could not get the above to work so I used the below command
 RUN  wget https://mirror.ctan.org/systems/texlive/tlnet/update-tlmgr-latest.sh  \
   && sh update-tlmgr-latest.sh -- --upgrade
 
+#
 # Install IRKernel
+#
 RUN R --quiet -e "install.packages('IRkernel', quiet = TRUE)" && \
     R --quiet -e "IRkernel::installspec(prefix='${CONDA_DIR}')"
 
+#
 # Install some R libraries that aren't in the base image
+#
 COPY class-libs.R /tmp/class-libs.R
 
 #
@@ -145,7 +161,6 @@ COPY class-libs.R /tmp/class-libs.R
 #RUN Rscript /tmp/extras.d/dlab-ctawg.r
 
 
-COPY postBuild ${REPO_DIR}/postBuild
 COPY ipython_config.py ${REPO_DIR}/ipython_config.py
 USER root
 
@@ -158,9 +173,13 @@ USER root
 RUN  apt-get -y update && apt-get -y install software-properties-common \
   && add-apt-repository ppa:linuxuprising/libpng12  \
   && apt-get -y install libpng12-0
+
 # Install facets which does not have a pip or conda package at the moment
 RUN pip install stata_kernel &&  python -m stata_kernel.install --sys-prefix
+
+
 # Install Python 3 packages
+# conda clean --all -f -y
 RUN conda install --quiet --yes \
     'altair=4.1.*' \
     'beautifulsoup4=4.9.*' \
@@ -168,8 +187,9 @@ RUN conda install --quiet --yes \
     'bottleneck=1.3.*' \
     'cloudpickle=1.6.*' \
     'conda-forge::blas=*=openblas' \
-    'cython=0.29.*' \
-    'dask=2021.4.*' \
+    'cython=0.29.*' 
+
+RUN conda install  --quiet --yes    'dask=2021.4.*' \
     'dill=0.3.*' \
     'h5py=3.2.*' \
     'ipympl=0.7.*'\
@@ -242,6 +262,10 @@ RUN jupyter nbextension enable --py --sys-prefix widgetsnbextension
 #
 # Let's start playing with jupyterlab
 #
+
+RUN curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
+RUN apt-get install -y nodejs
+
 RUN pip install jupyterlab && jupyter labextension install @jupyterlab/hub-extension
 #
 # Also added this to the yaml so /lab would be default:
@@ -250,11 +274,76 @@ RUN pip install jupyterlab && jupyter labextension install @jupyterlab/hub-exten
 #    c.Spawner.cmd=["jupyter-labhub"]
 #
 
+USER root
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 
+##########
+# add Video Chat
+#
+RUN pip install -U jupyter-videochat  &&  jupyter serverextension enable --sys-prefix --py jupyter_videochat
+#
+# End Video Chat
+##########
+
+
+##########
+# Add Julia 
+#
+RUN  apt-get  install -y julia 
+COPY julia.jl /tmp/julia.jl
+RUN julia /tmp/julia.jl
+#
+# End Julia
+##########
+
+#########
+# Add Desktop
+#
+RUN apt-get -y install gtk2-engines-pixbuf
+RUN apt-get -y update \
+ && apt-get install -y dbus-x11 \
+   firefox \
+   xfce4 \
+   xfce4-panel \
+   xfce4-session \
+   xfce4-settings \
+   xorg \
+   xubuntu-icon-theme
+
+
+# Remove light-locker to prevent screen lock
+RUN wget 'https://sourceforge.net/projects/turbovnc/files/2.2.5/turbovnc_2.2.5_amd64.deb/download' -O turbovnc_2.2.5_amd64.deb && \
+   apt-get install -y -q ./turbovnc_2.2.5_amd64.deb && \
+   apt-get remove -y -q light-locker && \
+   rm ./turbovnc_2.2.5_amd64.deb && \
+   ln -s /opt/TurboVNC/bin/* /usr/local/bin/
+
+
+ADD . /opt/install
+#RUN /opt/install/fix-permissions /opt/install
+
+RUN cd /opt/install && \
+   conda env update -n base --file environment.yml
+
+
+#
+# Fix perms because we used root to install some apps
+#
 RUN chown -R ${NB_USER}:${NB_USER}  /home/${NB_USER} && chmod 755 /usr/local/bin/sas
+
+
+#
+# Change shell for terminal users
+#
+RUN chsh -s /usr/bin/bash  rstudio
+
 USER ${NB_USER}
 ENV PATH=$PATH:/bulk/apps/STATA/stata15
 EXPOSE 8888
 
+#RUN /tmp/fix-permissions /opt/install
+COPY postBuild ${REPO_DIR}/postBuild
 RUN ${REPO_DIR}/postBuild
+

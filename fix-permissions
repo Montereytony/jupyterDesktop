@@ -20,15 +20,11 @@ set -e
 
 for d in $@; do
   find "$d" \
-    ! \( \
       -group $NB_GID \
-    \) \
     -exec chgrp $NB_GID {} \; \
     -exec chmod g+rwX {} \;
   # setuid,setgid *on directories only*
   find "$d" \
-    \( \
         -type d \
-    \) \
     -exec chmod +6000 {} \;
 done
