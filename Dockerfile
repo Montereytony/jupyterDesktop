@@ -4,7 +4,11 @@
 #
 FROM rocker/geospatial@sha256:7b0e833cd52753be619030f61ba9e085b45eb9bb13678311da4a55632c3c8c79
 ENV NB_USER rstudio
-ENV NB_UID 1000
+#ZENV NB_UID 1000
+ENV NB_UID 2001
+
+RUN /usr/bin/perl -pi -e 's/:100:/:1003:/' /etc/group
+RUN /usr/bin/perl -pi -e 's/:1000:100:/:2001:1003:/' /etc/passwd
 
 # Set ENV for Conda...
 ENV CONDA_DIR /srv/conda
@@ -109,7 +113,7 @@ RUN pip install pyppeteer
 #
 # could not get the above to work so I used the below command
 RUN  wget https://mirror.ctan.org/systems/texlive/tlnet/update-tlmgr-latest.sh  \
-  && sh update-tlmgr-latest.sh -- --upgrade
+  && sh update-tlmgr-latest.sh -- --upgrade &&  rm  /home/${NB_USER}/update-tlmgr-latest.sh 
 
 #
 # Install IRKernel
@@ -231,7 +235,6 @@ USER $NB_UID
 ENV PATH=$PATH:/home/${NB_USER}/.local/bin:/bulk/apps/STATA/stata15
 ENV STATA_SYSDIR=/bulk/apps/STATA/stata15
 ADD stata_kernel.conf  /home/${NB_USER}/.stata_kernel.conf
-RUN  rm  /home/${NB_USER}/update-tlmgr-latest.sh 
 WORKDIR $HOME
 COPY requirements_stata.txt       ${REPO_DIR}/requirements_stata.txt
 RUN pip install --no-cache-dir -r ${REPO_DIR}/requirements_stata.txt
@@ -282,7 +285,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ##########
 # add Video Chat
 #
-RUN pip install -U jupyter-videochat  &&  jupyter serverextension enable --sys-prefix --py jupyter_videochat
+#RUN pip install -U jupyter-videochat  &&  jupyter serverextension enable --sys-prefix --py jupyter_video#chat
 #
 # End Video Chat
 ##########
